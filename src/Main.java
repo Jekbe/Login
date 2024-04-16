@@ -4,10 +4,7 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.Scanner;
 
 public class Main {
@@ -22,7 +19,7 @@ public class Main {
         });
         konsola.start();
 
-        try (ServerSocket SocketAPI = new ServerSocket(8002);){
+        try (ServerSocket SocketAPI = new ServerSocket(8002)){
             System.out.println("Serwer działa");
             while (run) {
                 Socket socket = SocketAPI.accept();
@@ -38,6 +35,7 @@ public class Main {
                     default -> "status:400";
                 };
 
+                System.out.println("Wysyłanie odpowiedzi: " + response);
                 out.println(response);
             }
         } catch (IOException e) {
@@ -46,23 +44,60 @@ public class Main {
     }
 
     private static String register(String request){
+        System.out.println("Rejestracja dostał ramkę: " + request);
+
         String[] ramka = request.split(";");
         String login = ramka[2].substring(6);
         String haslo = ramka[3].substring(6);
 
-        try (Connection connection = DriverManager.getConnection("", "", "");){
-            String usersQuery = "SELECT COUNT(*) AS count FROM Users WHERE Login=?";
-            PreparedStatement preparedStatement = connection.prepareStatement(usersQuery);
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/mikroserwisy", "root", "")){
+            PreparedStatement preparedStatement;
+            ResultSet resultSet;
+
+            preparedStatement = connection.prepareStatement("SELECT COUNT(*) AS count FROM users WHERE Login=?");
             preparedStatement.setString(1, login);
+            resultSet = preparedStatement.executeQuery();
+            resultSet.next();
+
+            if (resultSet.getInt("count") > 0) return "status:406";
+
+            preparedStatement = connection.prepareStatement("INSERT INTO users (Login, Haslo) VALUES (?,?)");
+            preparedStatement.setString(1, login);
+            preparedStatement.setString(2, haslo);
+            preparedStatement.executeUpdate();
         } catch (SQLException e){
             System.out.println("Błąd: " + e);
+            return "status:500";
         }
 
-
-        return "typ:register;id:10;";
+        System.out.println("Rejestracj przetworzył zapytanie");
+        return "status:200";
     }
 
     private static String login(String request){
-        return "typ:login;id:20;";
+        System.out.println("Login dostał ramkę: " + request);
+
+        String[] ramka = request.split(";");
+        String login = ramka[2].substring(6);
+        String haslo = ramka[3].substring(6);
+
+        try (Connection connection = DriverManager.getConnection("jdbc:mysql://localhost:3306/mikroserwisy", "root", "")){
+            PreparedStatement preparedStatement;
+            ResultSet resultSet;
+
+            preparedStatement = connection.prepareStatement("SELECT count(*) AS count FROM users WHERE Login=? AND Haslo=?");
+            preparedStatement.setString(1, login);
+            preparedStatement.setString(2, haslo);
+            resultSet = preparedStatement.executeQuery();
+            resultSet.next();
+
+            if (resultSet.getInt("count") == 0) return "status:401";
+        } catch (SQLException e){
+            System.out.println("Błąd: " + e);
+            return "status:500";
+        }
+
+        System.out.println("Login przetworzył zapytanie");
+        return "status:200";
     }
 }
