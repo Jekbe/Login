@@ -6,6 +6,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Scanner;
 
@@ -50,7 +51,9 @@ public class Main {
         String haslo = ramka[3].substring(6);
 
         try (Connection connection = DriverManager.getConnection("", "", "");){
-
+            String usersQuery = "SELECT COUNT(*) AS count FROM Users WHERE Login=?";
+            PreparedStatement preparedStatement = connection.prepareStatement(usersQuery);
+            preparedStatement.setString(1, login);
         } catch (SQLException e){
             System.out.println("Błąd: " + e);
         }
